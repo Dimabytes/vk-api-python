@@ -2,6 +2,7 @@ import lxml.html
 import re
 import json
 import requests
+import time
 
 
 class InvalidPassword(Exception):
@@ -46,7 +47,7 @@ class Api(object):
             raise InvalidPassword("Invalid login/password")
         return
 
-    def method(self, method, v=5.87, **params):
+    def method(self, method, v=5.103, **params):
         if method not in self.hashes:
             self._get_hash(method)
         data = {'act': 'a_run_method', 'al': 1,
@@ -55,11 +56,14 @@ class Api(object):
                 'param_v': v}
         for i in params:
             data["param_" + i] = params[i]
-        answer = self.session.post('https://vk.com/dev', data=data, proxies=self.proxies)
         try:
+            answer = self.session.post('https://vk.com/dev', data=data, proxies=self.proxies)
             return json.loads(json.loads(answer.text[4:])['payload'][1][0])['response']
         except KeyError:
-            raise BadApiResponse('Bad api response')
+            raise BadApiResponse(answer.text)
+        except requests.exceptions.ConnectionError:
+            time.sleep(15)
+            raise BadApiResponse("Can't connect to vk")
 
     def _get_hash(self, method):
         html = self.session.get('https://vk.com/dev/' + method, proxies=self.proxies)
